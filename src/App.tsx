@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { GoogleGenAI } from '@google/genai';
 import { Image as ImageIcon, Loader2, Download, Sparkles, AlertCircle } from 'lucide-react';
 
 export default function App() {
@@ -9,7 +8,7 @@ export default function App() {
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-[#F27D26]" />
-            <span className="font-bold tracking-tight">Lumina Studio (Free)</span>
+            <span className="font-bold tracking-tight">Lumina Studio (100% Free)</span>
           </div>
         </div>
       </header>
@@ -35,42 +34,51 @@ function ImageGenerator() {
     setResultUrl(null);
 
     try {
-      // Check for the API key. 
-      // import.meta.env.VITE_GEMINI_API_KEY is for Vercel/external deployments
-      // process.env.GEMINI_API_KEY is injected by AI Studio
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+      // Using Pollinations.ai - a completely free, no-API-key required image generation service
+      const seed = Math.floor(Math.random() * 10000000);
+      const encodedPrompt = encodeURIComponent(prompt);
+      const width = 1024;
+      const height = 1024;
       
-      if (!apiKey) {
-        throw new Error("API key not found. Fix for Vercel: Go to Settings > Environment Variables. Add a new variable named VITE_GEMINI_API_KEY with your API key. Then go to Deployments and REDEPLOY.");
-      }
+      const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?seed=${seed}&width=${width}&height=${height}&nologo=true`;
 
-      const ai = new GoogleGenAI({ apiKey });
+      // Pre-load the image to show the loading spinner until it's fully downloaded
+      const img = new Image();
+      img.crossOrigin = "Anonymous";
       
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image',
-        contents: {
-          parts: [{ text: prompt }],
-        },
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = () => reject(new Error("Failed to load generated image. Please try again."));
+        img.src = imageUrl;
       });
 
-      let foundImage = false;
-      for (const part of response.candidates?.[0]?.content?.parts || []) {
-        if (part.inlineData) {
-          const base64EncodeString = part.inlineData.data;
-          setResultUrl(`data:image/png;base64,${base64EncodeString}`);
-          foundImage = true;
-          break;
-        }
-      }
-      
-      if (!foundImage) {
-        throw new Error("No image was returned in the response.");
-      }
+      setResultUrl(imageUrl);
     } catch (err: any) {
       console.error(err);
       setError(err.message || "An error occurred during generation.");
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!resultUrl) return;
+    try {
+      // Fetch the image as a blob to force a download rather than opening in a new tab
+      const response = await fetch(resultUrl);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `lumina-image-${Date.now()}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error("Download failed, opening in new tab instead", err);
+      window.open(resultUrl, '_blank');
     }
   };
 
@@ -116,10 +124,14 @@ function ImageGenerator() {
             
             {error && (
               <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-2 text-red-400 text-sm mt-4">
-                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-                <p>{error}</p>
+                <AlertCircle className="w-5 h-5 mt-0.5 shrink-0" />
+                <p className="leading-relaxed">{error}</p>
               </div>
             )}
+            
+            <div className="mt-4 text-xs text-gray-500 text-center">
+              Powered by Pollinations.ai. No API key required.
+            </div>
           </div>
         </div>
       </div>
@@ -137,17 +149,16 @@ function ImageGenerator() {
                 src={resultUrl} 
                 alt="Generated result" 
                 className="max-w-full max-h-[700px] object-contain rounded-lg shadow-2xl"
-                referrerPolicy="no-referrer"
+                crossOrigin="anonymous"
               />
               <div className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity">
-                <a 
-                  href={resultUrl} 
-                  download="lumina-image.png"
-                  className="bg-black/50 hover:bg-black/80 backdrop-blur-md text-white p-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors border border-white/10"
+                <button 
+                  onClick={handleDownload}
+                  className="bg-black/50 hover:bg-black/80 backdrop-blur-md text-white p-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors border border-white/10 cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
                   Download
-                </a>
+                </button>
               </div>
             </div>
           ) : (
