@@ -35,12 +35,13 @@ function ImageGenerator() {
     setResultUrl(null);
 
     try {
-      // Check for the API key. In AI Studio, this is injected automatically.
-      // On Vercel, it must be set in the project's Environment Variables.
-      const apiKey = process.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+      // Check for the API key. 
+      // import.meta.env.VITE_GEMINI_API_KEY is for Vercel/external deployments
+      // process.env.GEMINI_API_KEY is injected by AI Studio
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
       
       if (!apiKey) {
-        throw new Error("API key not found. If you deployed this to Vercel, you must add your GEMINI_API_KEY to the Vercel Environment Variables and redeploy.");
+        throw new Error("API key not found. Fix for Vercel: Go to Settings > Environment Variables. Add a new variable named VITE_GEMINI_API_KEY with your API key. Then go to Deployments and REDEPLOY.");
       }
 
       const ai = new GoogleGenAI({ apiKey });
